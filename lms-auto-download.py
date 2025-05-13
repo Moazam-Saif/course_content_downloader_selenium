@@ -51,23 +51,29 @@ for element in course_elements:
 # Prompt the user to enter the name of the course
 course_input = input("Enter the name of the course: ").strip().lower()
 
-# Function to calculate word-based match score
-def word_match_score(input_text, course_name):
-    input_words = set(input_text.split())  # Split user input into words
-    course_words = set(course_name.lower().split())  # Split course name into words
-    return len(input_words & course_words)  # Count the number of matching words
+# Function to calculate a similarity score
+def similarity_score(input_text, course_name):
+    input_words = set(input_text.split())
+    course_words = set(course_name.lower().split())
+    matching_words = input_words & course_words
+    score = len(matching_words) / max(len(input_words), len(course_words))  # Normalize by the larger set
+    print(f"Matching '{input_text}' with '{course_name}'")
+    print(f"Input Words: {input_words}, Course Words: {course_words}, Matching Words: {matching_words}, Score: {score}")
+    return score
 
 # Find the best match based on word overlap
+# Find the best match based on similarity score
 best_match = None
-best_score = 0
+best_score = 0.0
 for course_name, href in course_links.items():
-    score = word_match_score(course_input, course_name)
+    score = similarity_score(course_input, course_name)
     if score > best_score:
         best_match = href
+        best_score = score
 
 # Click the link for the best match
 if best_match:
-    driver.get(href)  # Navigate to the link
+    driver.get(best_match)  # Navigate to the link
 else:
     print("No matching course found.")
     
