@@ -1,74 +1,89 @@
-import os
-import time
-import requests
 from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+import time  # Import time for adding delays
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
-# Set up the custom download directory
-download_dir = "D:/CourseFiles/Prob&Stats"
-if not os.path.exists(download_dir):
-    os.makedirs(download_dir)
 
-# Configure Chrome options
-chrome_options = Options()
-prefs = {
-    "download.prompt_for_download": False,
-    "safebrowsing.enabled": True
-}
-chrome_options.add_experimental_option("prefs", prefs)
-
-# Initialize the WebDriver
-driver = webdriver.Chrome(options=chrome_options)
+username=input("Enter your username:")
+password=input("Enter your password:")
+# Initialize the WebDriver (e.g., Chrome)
+driver = webdriver.Chrome()  # Ensure the WebDriver is in PATH or provide the full path
 
 # Open the page
-driver.get("https://lms.nust.edu.pk/portal/course/view.php?id=55621")
+driver.get("https://lms.nust.edu.pk/portal/login/index.php")
 
-# Log in
+
+# Locate the username input field and enter the username
 username_field = driver.find_element(By.ID, "username")
-username_field.send_keys("msaif.bese23seecs")
+username_field.send_keys(username)  # Replace 'your_username' with your actual username
+
+# Locate the password input field and enter the password
 password_field = driver.find_element(By.ID, "password")
-password_field.send_keys("Seecs@27")
+password_field.send_keys(password)  # Replace 'your_password' with your actual password
+
+# Locate the login button and click it
 login_button = driver.find_element(By.ID, "loginbtn")
 login_button.click()
 
-# Wait for the page to load
+# Print the page title after login
+print("Page title after login:", driver.title)
+
+# Wait for the course elements to load
+course_elements = WebDriverWait(driver, 10).until(
+    EC.presence_of_all_elements_located((By.CSS_SELECTOR, "a.aalink.coursename"))
+)
+
+# Create a dictionary to associate course names with their links
+course_links = {}
+for element in course_elements:
+    # Get the href attribute of the <a> tag
+    href = element.get_attribute("href")
+    
+    course_name = element.text.strip()  # Get the text of the <span> and strip any extra whitespace
+    print(course_name+"1")
+    
+    # Add the course name and link to the dictionary
+    course_links[course_name] = href
+    print(href)
+
+# Prompt the user to enter the name of the course
+course_input = input("Enter the name of the course: ").strip().lower()
+
+# Function to calculate word-based match score
+def word_match_score(input_text, course_name):
+    input_words = set(input_text.split())  # Split user input into words
+    course_words = set(course_name.lower().split())  # Split course name into words
+    return len(input_words & course_words)  # Count the number of matching words
+
+# Find the best match based on word overlap
+best_match = None
+best_score = 0
+for course_name, href in course_links.items():
+    score = word_match_score(course_input, course_name)
+    if score > best_score:
+        best_match = href
+
+# Click the link for the best match
+if best_match:
+    driver.get(href)  # Navigate to the link
+else:
+    print("No matching course found.")
+    
+
 time.sleep(2)
 
+# Find all <a> tags with the class "aalink"
 aalink_elements = driver.find_elements(By.CLASS_NAME, "aalink")
 
-# Create a dictionary where the instance name is the key and the href is the value
-aalink_urls = {}
-for element in aalink_elements:
-    href = element.get_attribute("href")  # Get the href attribute
-    span = element.find_element(By.CLASS_NAME, "instancename")  # Find the <span> with class "instancename"
-    instance_name = span.text.strip()  # Get the text of the <span> and strip any extra whitespace
-    aalink_urls[instance_name] = href  # Add to the dictionary
+# Create a list of the href attributes of these <a> tags
+aalink_urls = [element.get_attribute("href") for element in aalink_elements]
 
-
-# Convert Selenium cookies to a dictionary for requests
-selenium_cookies = driver.get_cookies()
-cookies = {cookie['name']: cookie['value'] for cookie in selenium_cookies}
-
-# Use requests to download the files
-for instance_name, url in aalink_urls.items():
-    print(f"Downloading: {instance_name} from {url}")
-    response = requests.get(url, cookies=cookies)  # Pass cookies for authentication
-
-    # Check if the server provides the file name in the Content-Disposition header
-    content_disposition = response.headers.get("Content-Disposition")
-    if content_disposition and "filename=" in content_disposition:
-        # Extract the file name from the Content-Disposition header
-        filename = content_disposition.split("filename=")[-1].strip('"')
-    else:
-        # Fallback: Use the instance name with a generic extension
-        filename = f"{instance_name}.file"
-
-    # Construct the full file path
-    file_path = os.path.join(download_dir, filename)
-    with open(file_path, "wb") as file:
-        file.write(response.content)
-    print(f"Downloaded: {file_path}")
+# Print the list of URLs
+print("Number of 'aalink' URLs:", len(aalink_urls))
+for aalink_url in aalink_urls:
+    driver.get(aalink_url)
 
 # Close the browser
 driver.quit()
